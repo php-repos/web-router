@@ -1,0 +1,40 @@
+{
+    "packages": {
+        "https:\/\/github.com\/php-repos\/datatype.git": {
+            "owner": "php-repos",
+            "repo": "datatype",
+            "version": "v4.0.0",
+            "hash": "d29dc1c67d83217b20768a74a973f1b5fc4513ea"
+        },
+        "https:\/\/github.com\/php-repos\/file-manager.git": {
+            "owner": "php-repos",
+            "repo": "file-manager",
+            "version": "v5.0.0",
+            "hash": "c9635dc75c45a9b227bd9f9381974046573664ec"
+        },
+        "https:\/\/github.com\/php-repos\/observer.git": {
+            "owner": "php-repos",
+            "repo": "observer",
+            "version": "v1.0.0",
+            "hash": "f38e79b372ec80beb12d24f7d77e5e8083e5952c"
+        },
+        "https:\/\/github.com\/ramsey\/uuid.git": {
+            "owner": "ramsey",
+            "repo": "uuid",
+            "version": "4.7.6",
+            "hash": "91039bc1faa45ba123c4328958e620d382ec7088"
+        },
+        "https:\/\/github.com\/brick\/math.git": {
+            "owner": "brick",
+            "repo": "math",
+            "version": "0.13.1",
+            "hash": "fc7ed316430118cc7836bf45faff18d5dfc8de04"
+        },
+        "https:\/\/github.com\/ramsey\/collection.git": {
+            "owner": "ramsey",
+            "repo": "collection",
+            "version": "2.1.1",
+            "hash": "344572933ad0181accbf4ba763e85a0306a8c5e2"
+        }
+    }
+}
