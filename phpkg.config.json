@@ -1,7 +1,6 @@
 {
     "map": {
-        "PhpRepos\\Web": "Source",
-        "Tests": "Tests"
+        "PhpRepos\\WebRouter": "Source"
     },
     "autoloads": [],
     "excludes": [],
@@ -9,16 +8,10 @@
         "http.php"
     ],
     "executables": [],
-    "import-file": "phpkg.imports.php",
     "packages-directory": "Packages",
+    "import-file": "phpkg.imports.php",
     "packages": {
-        "https:\/\/github.com\/php-repos\/file-manager.git": "v5.0.0",
-        "https:\/\/github.com\/php-repos\/datatype.git": "v4.0.0",
-        "https:\/\/github.com\/php-repos\/observer.git": "v1.0.0"
+        "https:\/\/github.com\/php-repos\/observer.git": "v2.0.0"
     },
-    "aliases": {
-        "file-manager": "https:\/\/github.com\/php-repos\/file-manager.git",
-        "datatype": "https:\/\/github.com\/php-repos\/datatype.git",
-        "observer": "https:\/\/github.com\/php-repos\/observer.git"
-    }
+    "aliases": []
 }
