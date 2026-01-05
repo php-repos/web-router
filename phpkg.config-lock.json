@@ -9,6 +9,13 @@
             "hash": "8e4fe3ba8d70dfd4de9d21aa047a438a72c3440d",
             "checksum": "685c4a0bf345814a8d64f8f2df6737950f11dc68a4defdd9ff750b78ad04b565"
         },
+        "https:\/\/github.com\/php-repos\/logger.git": {
+            "owner": "php-repos",
+            "repo": "logger",
+            "version": "v2.0.1",
+            "hash": "65bb575f7f14107e06ebe6b3f57e9f7478adbff2",
+            "checksum": "6bf72b3d85b73f29927eaf6b2c9fe7b33c8d7ad51eb6a3e1d7240c8ecfad6b26"
+        },
         "https:\/\/github.com\/ramsey\/uuid.git": {
             "owner": "ramsey",
             "repo": "uuid",
@@ -29,13 +36,6 @@
             "version": "2.1.1",
             "hash": "344572933ad0181accbf4ba763e85a0306a8c5e2",
             "checksum": "a9d0d7949173c4fb8735a019f0052d3f1910d58fb10ed19e8003cab70f462c72"
-        },
-        "https:\/\/github.com\/php-repos\/logger.git": {
-            "owner": "php-repos",
-            "repo": "logger",
-            "version": "v2.0.1",
-            "hash": "65bb575f7f14107e06ebe6b3f57e9f7478adbff2",
-            "checksum": "6bf72b3d85b73f29927eaf6b2c9fe7b33c8d7ad51eb6a3e1d7240c8ecfad6b26"
         }
     }
 }

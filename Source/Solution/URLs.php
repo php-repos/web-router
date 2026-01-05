@@ -2,6 +2,8 @@
 
 namespace PhpRepos\WebRouter\Solution\URLs;
 
+use function PhpRepos\Logger\API\Logs\debug;
+
 /**
  * Extract the path component from a URL.
  *
@@ -13,6 +15,8 @@ namespace PhpRepos\WebRouter\Solution\URLs;
  */
 function path(string $url): string
 {
+    debug('Extracting path from URL', ['url' => $url]);
+
     $parsed_url = parse_url($url);
     $url_path = $parsed_url['path'] ?? '/';
 

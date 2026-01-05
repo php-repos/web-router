@@ -10,6 +10,7 @@ use PhpRepos\WebRouter\Infra\Reflections;
 use PhpRepos\WebRouter\Infra\Strings;
 use ReflectionException;
 use ReflectionNamedType;
+use function PhpRepos\Logger\API\Logs\debug;
 
 function url_pattern(string $root, string $route, string $suffix): string
 {
@@ -35,6 +36,8 @@ function url_pattern(string $root, string $route, string $suffix): string
  */
 function sort(array $routes): array
 {
+    debug('Sorting routes by specificity', ['route_count' => count($routes)]);
+
     return Arrays\sort($routes, function ($a, $b) {
         return substr_count($a['pattern'], '{') <=> substr_count($b['pattern'], '{');
     });
@@ -49,6 +52,8 @@ function sort(array $routes): array
  */
 function match_pattern(string $pattern, string $url_path): ?array
 {
+    debug('Matching URL path against route pattern', ['pattern' => $pattern, 'url_path' => $url_path]);
+
     $pattern_parts = explode('/', trim($pattern, '/'));
     $url_parts = explode('/', trim($url_path, '/'));
 
@@ -83,6 +88,8 @@ function match_pattern(string $pattern, string $url_path): ?array
  */
 function validate_method(callable $handler, string $method, string $url): void
 {
+    debug('Validating HTTP method for handler', ['method' => $method, 'url' => $url]);
+
     $attributes = Reflections\get_attributes($handler, Method::class);
     if (empty($attributes)) return;
 
@@ -90,6 +97,8 @@ function validate_method(callable $handler, string $method, string $url): void
     foreach ($attributes as $attr) {
         $allowed_methods[] = Strings\to_upper_case($attr->newInstance()->method);
     }
+
+    debug('Method validation result', ['requested_method' => $method, 'allowed_methods' => $allowed_methods]);
 
     if (!in_array(Strings\to_upper_case($method), $allowed_methods)) {
         throw new MethodNotAllowedException($url, $allowed_methods);
@@ -108,6 +117,8 @@ function validate_method(callable $handler, string $method, string $url): void
  */
 function validate_parameters(callable $handler, array $url_parameters, array $variables): array
 {
+    debug('Validating parameters for handler', ['url_parameters' => $url_parameters, 'variables' => $variables]);
+
     $parameters = Reflections\get_parameters($handler);
     $prepared = [];
 
@@ -127,6 +138,8 @@ function validate_parameters(callable $handler, array $url_parameters, array $va
             $prepared[$param_name] = null;
         }
     }
+
+    debug('Parameters validated and prepared', ['prepared_parameters' => $prepared]);
 
     return $prepared;
 }

@@ -4,6 +4,7 @@ namespace PhpRepos\WebRouter\Solution\Paths;
 
 use PhpRepos\WebRouter\Infra\Arrays;
 use PhpRepos\WebRouter\Infra\Filesystem;
+use function PhpRepos\Logger\API\Logs\debug;
 
 /**
  * Resolve a path relative to the application root.
@@ -15,6 +16,8 @@ use PhpRepos\WebRouter\Infra\Filesystem;
  */
 function from_root(string $relative): string
 {
+    debug('Resolving path from root', ['relative_path' => $relative]);
+
     return Filesystem\join(Filesystem\root(), $relative);
 }
 
@@ -30,5 +33,7 @@ function from_root(string $relative): string
  */
 function all_routes(string $root, string $suffix): array
 {
+    debug('Finding all route files', ['root' => $root, 'suffix' => $suffix]);
+
     return Arrays\filter(Filesystem\list_files($root), fn (string $path) => str_ends_with($path, $suffix) && is_file($path));
 }
