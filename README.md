@@ -377,38 +377,42 @@ subscribe(function ($signal) {
 
 ## Error Handling
 
-Handle routing exceptions gracefully:
+The router uses the Outcome pattern for consistent error handling. All Business layer functions return an `Outcome` object with `success`, `message`, and `data` properties.
 
 ```php
 <?php
 
-use PhpRepos\WebRouter\Solution\Exceptions\RouteNotFoundException;
-use PhpRepos\WebRouter\Solution\Exceptions\MethodNotAllowedException;
-use PhpRepos\WebRouter\Solution\Exceptions\ParameterValidationException;
+use PhpRepos\WebRouter\Business\Router;
 
-try {
-    $outcome = respond($routes, $_SERVER['REQUEST_URI'], $_SERVER['REQUEST_METHOD']);
-    echo is_array($outcome->data['response']) 
-        ? json_encode($outcome->data['response']) 
-        : $outcome->data['response'];
-        
-} catch (RouteNotFoundException $e) {
-    http_response_code(404);
-    echo json_encode(['error' => 'Page not found']);
-    
-} catch (MethodNotAllowedException $e) {
-    http_response_code(405);
-    header('Allow: ' . implode(', ', $e->allowed_methods));
-    echo json_encode(['error' => 'Method not allowed']);
-    
-} catch (ParameterValidationException $e) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Invalid parameters: ' . $e->getMessage()]);
-    
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Internal server error']);
+$outcome = Router\respond(
+    routes: $routes,
+    url: $_SERVER['REQUEST_URI'],
+    method: $_SERVER['REQUEST_METHOD'],
+    variables: array_replace($_GET, $_POST, $_FILES)
+);
+
+if (!$outcome->success) {
+    // Determine appropriate HTTP status code based on error message
+    if (str_contains($outcome->message, 'Route not found')) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Page not found', 'message' => $outcome->message]);
+    } elseif (str_contains($outcome->message, 'Method') && str_contains($outcome->message, 'not allowed')) {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed', 'message' => $outcome->message]);
+    } elseif (str_contains($outcome->message, 'Parameter')) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid parameters', 'message' => $outcome->message]);
+    } else {
+        http_response_code(500);
+        echo json_encode(['error' => 'Internal server error', 'message' => $outcome->message]);
+    }
+    exit;
 }
+
+// Success - return the response
+echo is_array($outcome->data['response'])
+    ? json_encode($outcome->data['response'])
+    : $outcome->data['response'];
 ```
 
 ## Advanced Features
@@ -743,7 +747,7 @@ subscribe(function (RouteDetected $signal) {
 // Security monitoring
 subscribe(function (RouteFindingFailed $signal) {
     // Log potential security issues
-    if (str_contains($signal->details['url', '../')) {
+    if (str_contains($signal->details['url'], '../')) {
         Security::log_suspicious_request($signal->details['url']);
     }
 });

@@ -45,21 +45,47 @@ function replace_first_occurrence(string $string, string $search, string $replac
     return substr_replace($string, $replace, $position, strlen($search));
 }
 
+/**
+ * Check if a string starts with a given substring.
+ *
+ * @param string $haystack The string to search in
+ * @param string $needle The substring to search for at the beginning
+ * @return bool True if haystack starts with needle, false otherwise
+ */
 function starts_with(string $haystack, string $needle): bool
 {
     return str_starts_with($haystack, $needle);
 }
 
+/**
+ * Check if a string ends with a given substring.
+ *
+ * @param string $haystack The string to search in
+ * @param string $needle The substring to search for at the end
+ * @return bool True if haystack ends with needle, false otherwise
+ */
 function ends_with(string $haystack, string $needle): bool
 {
     return str_ends_with($haystack, $needle);
 }
 
+/**
+ * Convert a string to lowercase.
+ *
+ * @param string $string The string to convert
+ * @return string The lowercase string
+ */
 function to_lower_case(string $string): string
 {
     return strtolower($string);
 }
 
+/**
+ * Convert a string to uppercase.
+ *
+ * @param string $string The string to convert
+ * @return string The uppercase string
+ */
 function to_upper_case(string $string): string
 {
     return strtoupper($string);

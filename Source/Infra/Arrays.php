@@ -33,6 +33,16 @@ function reduce(array $items, callable $callback, mixed $initial): mixed
     return array_reduce($items, $callback, $initial);
 }
 
+/**
+ * Sort an array using a comparator function.
+ *
+ * Sorts the array elements using a user-defined comparison function.
+ * Returns a new array with sorted elements.
+ *
+ * @param array $items The array to sort
+ * @param callable $comparator Comparison function that receives two items and returns -1, 0, or 1
+ * @return array Sorted array with re-indexed numeric keys
+ */
 function sort(array $items, callable $comparator): array
 {
     usort($items, $comparator);
