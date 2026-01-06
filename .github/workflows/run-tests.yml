@@ -55,7 +55,7 @@ jobs:
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://raw.githubusercontent.com/php-repos/phpkg-installation/master/install.ps1" -OutFile install.ps1 -UseBasicParsing
-          powershell -ExecutionPolicy Bypass -File install.ps2
+          powershell -ExecutionPolicy Bypass -File install.ps1
           $phpkgPath = "$env:USERPROFILE\.phpkg"
           if (-not (Test-Path $phpkgPath)) {
             Write-Error "phpkg installation directory not found at $phpkgPath"
