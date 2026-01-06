@@ -132,7 +132,7 @@ Routes/
 │   │   ├── show.php       # Handles "/users/{id}/show"
 │   │   └── delete.php     # Handles "/users/{id}"
 │   └── {email}/
-│       └── {id?}.php     # Handles "/users/{email}/{id?}"
+│       └── [{id}].php     # Handles "/users/{email}/[{id}]"
 ├── api/
 │   └── v1/
 │       ├── posts/
@@ -155,9 +155,9 @@ return function (int $id) {
 
 ### Optional Parameters
 
-Use `{?parameter}` for optional URL segments:
+Use `[{parameter}]` for optional URL segments:
 
-**File:** `Routes/posts/{category}/{id?}.php`
+**File:** `Routes/posts/{category}/[{id}].php`
 ```php
 <?php
 
@@ -251,7 +251,7 @@ return function (int $id) {
 Use optional parameters with default values:
 
 ```php
-// Routes/users/{email}/{id?}.php
+// Routes/users/{email}/[{id}].php
 return function (string $email, ?int $id = null) {
     return $id ? "User $email with ID $id" : "User $email";
 };

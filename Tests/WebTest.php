@@ -3,8 +3,6 @@
 use PhpRepos\Observer\API\Event;
 use PhpRepos\Observer\API\Signal;
 use PhpRepos\WebRouter\Business\Attributes\Method;
-use PhpRepos\WebRouter\Solution\Exceptions\MethodNotAllowedException;
-use PhpRepos\WebRouter\Solution\Exceptions\ParameterValidationException;
 use PhpRepos\WebRouter\Business\Signals\HandlerExecuted;
 use PhpRepos\WebRouter\Business\Signals\DisallowedMethodDetected;
 use PhpRepos\WebRouter\Business\Signals\RouteDetected;
@@ -202,11 +200,11 @@ test(
     case: function () use ($test_routes) {
          $outcome = Router\respond($test_routes, '/products/cars', 'GET');
          assert_true($outcome->success, 'Expected successful outcome');
-        assert_true('Showing products in category cars' === $outcome->data['response'], 'Did not return expected response when optional param passed: ' . $outcome->data['response']);
+         assert_true('Showing products in category cars' === $outcome->data['response'], 'Did not return expected response when optional param passed: ' . $outcome->data['response']);
 
-        $outcome = Router\respond($test_routes, '/products', 'GET');
-        assert_true($outcome->success, 'Expected successful outcome');
-        assert_true('Showing products in category All' === $outcome->data['response'], 'Did not return expected response when optional parameter is absent: ' . $outcome->data['response']);
+         $outcome = Router\respond($test_routes, '/products', 'GET');
+         assert_true($outcome->success, 'Expected successful outcome');
+         assert_true('Showing products in category All' === $outcome->data['response'], 'Did not return expected response when optional parameter is absent: ' . $outcome->data['response']);
     }
 );
 

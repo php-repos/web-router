@@ -16,7 +16,7 @@ use function PhpRepos\Observer\API\Bus\send;
  *
  * Scans the given routes directory for PHP files and converts them
  * into route definitions with URL patterns and handlers. Supports
- * dynamic parameters in filenames (e.g., {id}, {?optional}) and
+ * dynamic parameters in filenames (e.g., {id}, [{optional}]) and
  * automatically generates URL patterns based on the file structure.
  *
  * Specification:
@@ -39,7 +39,7 @@ use function PhpRepos\Observer\API\Bus\send;
  * │   │   ├── delete.php     -> pattern: "/users/{id}"
  * │   ├── create.php         -> pattern: "/users/create"
  * │   ├── {email}/
- * │   │   ├── {id?}.php      -> pattern: "/users/{email}/{id?}"
+ * │   │   ├── [{id}].php     -> pattern: "/users/{email}/[{id}]"
  *
  * @param string $routes_directory Path to the routes directory relative to project root
  * @param string $suffix File extension to look for (default: '.php')

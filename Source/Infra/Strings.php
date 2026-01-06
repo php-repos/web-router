@@ -90,3 +90,16 @@ function to_upper_case(string $string): string
 {
     return strtoupper($string);
 }
+
+/**
+ * Replace all occurrences of a search string with a replacement.
+ *
+ * @param string $subject The string to search in
+ * @param string $search The substring to search for
+ * @param string $replace The replacement string
+ * @return string The string with all occurrences replaced
+ */
+function replace(string $subject, string $search, string $replace): string
+{
+    return str_replace($search, $replace, $subject);
+}

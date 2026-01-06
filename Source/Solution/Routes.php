@@ -5,6 +5,8 @@ namespace PhpRepos\WebRouter\Solution\Routes;
 use PhpRepos\WebRouter\Business\Attributes\Method;
 use PhpRepos\WebRouter\Solution\Exceptions\MethodNotAllowedException;
 use PhpRepos\WebRouter\Solution\Exceptions\ParameterValidationException;
+use PhpRepos\WebRouter\Solution\Patterns;
+use PhpRepos\WebRouter\Solution\URLs;
 use PhpRepos\WebRouter\Infra\Arrays;
 use PhpRepos\WebRouter\Infra\Reflections;
 use PhpRepos\WebRouter\Infra\Strings;
@@ -12,8 +14,18 @@ use ReflectionException;
 use ReflectionNamedType;
 use function PhpRepos\Logger\API\Logs\debug;
 
+/**
+ * Generate a URL pattern from a route path.
+ *
+ * @param string $root The root directory of the routes
+ * @param string $route The route path
+ * @param string $suffix The file suffix of the route files
+ * @return string The URL pattern
+ */
 function url_pattern(string $root, string $route, string $suffix): string
 {
+    debug('Generating URL pattern from route path', ['root' => $root, 'route' => $route, 'suffix' => $suffix]);
+
     $relative = Strings\replace_first_occurrence($route, $root, '');
 
     if (Strings\ends_with($relative, 'index' . $suffix)) {
@@ -21,6 +33,8 @@ function url_pattern(string $root, string $route, string $suffix): string
     } else {
         $relative = Strings\before_last_occurrence($relative, $suffix);
     }
+
+    $relative = Strings\replace($relative, DIRECTORY_SEPARATOR, '/');
 
     return $relative === '' ? '/' : $relative;
 }
@@ -54,19 +68,15 @@ function match_pattern(string $pattern, string $url_path): ?array
 {
     debug('Matching URL path against route pattern', ['pattern' => $pattern, 'url_path' => $url_path]);
 
-    $pattern_parts = explode('/', trim($pattern, '/'));
-    $url_parts = explode('/', trim($url_path, '/'));
+    if (!Patterns\matches($pattern, $url_path)) return null;
 
-    $optional_count = Arrays\reduce($pattern_parts, fn ($c, $p) => str_starts_with($p, '{?') ? ++$c : $c, 0);
-
-    if (count($url_parts) !== count($pattern_parts) && count($url_parts) !== count($pattern_parts) - $optional_count) {
-        return null;
-    }
+    $pattern_parts = URLs\parts($pattern);
+    $url_parts = URLs\parts($url_path);
 
     $parameters = [];
     foreach ($pattern_parts as $position => $part) {
-        if (Strings\starts_with($part, '{')) {
-            $param_name = Strings\starts_with($part, '{?') ? substr($part, 2, -1) : substr($part, 1, -1);
+        if (Patterns\is_dynamic($part)) {
+            $param_name = Patterns\variable_name($part);
             $parameters[$param_name] = isset($url_parts[$position]) ? urldecode($url_parts[$position]) : null;
         } elseif (!isset($url_parts[$position]) || Strings\to_lower_case($part) !== Strings\to_lower_case($url_parts[$position])) {
             return null;

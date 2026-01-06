@@ -23,3 +23,16 @@ function path(string $url): string
     // Decode all except %2F (encoded forward slash)
     return preg_replace_callback('/%(?![2][Ff])[^%]+/', fn ($m) => urldecode($m[0]), $url_path);
 }
+
+/**
+ * Split a URL path into parts.
+ *
+ * Splits the path by '/' and removes empty parts from trimming.
+ *
+ * @param string $url_path The URL path (e.g., '/products/123/orders')
+ * @return array Array of URL path parts
+ */
+function parts(string $url_path): array
+{
+    return explode('/', trim($url_path, '/'));
+}
