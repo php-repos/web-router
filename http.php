@@ -1,13 +1,19 @@
 <?php
 
-use PhpRepos\FileManager\Path;
-use function PhpRepos\FileManager\Paths\root;
-use function PhpRepos\Web\Routes\detect_routes;
-use function PhpRepos\Web\Web\respond;
+use PhpRepos\WebRouter\Business\Finder;
+use PhpRepos\WebRouter\Business\Router;
 
-return respond(
-    routes: detect_routes(Path::from(root())->sub()),
+$outcome = Finder\path('Routes');
+if (!$outcome->success) return $outcome->message;
+
+$routes = $outcome->data['routes'];
+
+$outcome = Router\respond(
+    routes: $routes,
     url: $_SERVER['REQUEST_URI'],
     method: $_SERVER['REQUEST_METHOD'],
     variables: array_replace($_GET, $_POST, $_FILES),
 );
+if (!$outcome->success) return $outcome->message;
+
+return $outcome->data['response'];

@@ -1,6 +1,6 @@
 <?php
 
-namespace PhpRepos\Web\Exceptions;
+namespace PhpRepos\WebRouter\Solution\Exceptions;
 
 use Exception;
 use Throwable;

@@ -2,144 +2,242 @@
 
 A lightweight, flexible routing package designed to map URLs to handler files or closures, supporting dynamic and optional parameters, HTTP method restrictions, and a signal-based event system for web applications.
 
-## Features
+## Table of Contents
 
-- **File-based Routing**: Automatically detect routes from a directory structure using `detect_routes`.
-- **Manual Route Definition**: Define routes programmatically using the `Router` class.
-- **Dynamic Parameters**: Support URL parameters (e.g., `/users/{id}`) with type validation (`int`, `bool`, `string`).
-- **Optional Parameters**: Handle optional URL segments (e.g., `/posts/{id}/{title?}`) with default values or `null`.
-- **HTTP Method Restrictions**: Restrict handlers to specific HTTP methods (GET, POST, PUT, DELETE, PATCH) using repeatable `#[Method]` attributes or method-specific files (e.g., `get.php`).
-- **Encoded URL Handling**: Process encoded characters (e.g., `%20` for spaces, `%2F` for slashes).
-- **Signal System**: Emit signals for request lifecycle events (e.g., `RequestReceived`, `RouteDetected`, `HandlerExecuted`) for observability.
-- **Exception Handling**: Throw meaningful exceptions:
-    - `RouteNotFoundException` for unmatched URLs.
-    - `MethodNotAllowedException` for disallowed HTTP methods.
-    - `ParameterValidationException` for invalid parameter types.
-- **Case Insensitivity**: Match routes regardless of URL case (e.g., `/USERS` matches `/users`).
-- **Query String Ignorance**: Ignore query strings for cleaner routing.
-- **Flexible Responses**: Handlers can return any data type (strings, arrays, etc.) as the response.
-- **Variable Injection**: Pass `$_GET`, `$_POST`, and `$_FILES` variables to handlers via the `respond` function.
-- **Repeatable Method Attributes**: Restrict a handler to one or more HTTP methods using repeatable `#[Method]` attributes in handler files or closures, allowing precise control over accepted methods.
-- **Parameter Respect**: Honor required and optional parameters as defined in handler signatures (e.g., `function (string $email, ?int $id)`).
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [File-based Routing](#file-based-routing)
+- [Manual Route Definition](#manual-route-definition)
+- [Handling Parameters](#handling-parameters)
+- [HTTP Method Restrictions](#http-method-restrictions)
+- [Signal System](#signal-system)
+- [Error Handling](#error-handling)
+- [Advanced Features](#advanced-features)
+- [Use Cases](#use-cases)
+- [For Developers](#for-developers)
 
 ## Installation
 
 Install the package using `phpkg`:
 
 ```bash
-phpkg add https://github.com/php-repos/web-router.git
+phpkg add web-router
+```
+
+After installation, build your project:
+
+```bash
+phpkg build
 ```
 
 ## Requirements
 
-- PHP >= 8.2
+- PHP >= 8.3
 
-## Usage
+## Quick Start
 
-### Option 1: File-based Routing
-1. **Create a Routes Directory**: Structure your routes in a `Routes` directory. For example:
-    - `Routes/index.php`: Handles `/`.
-    - `Routes/users/index.php`: Handles `/users`.
-    - `Routes/users/{id}/show.php`: Handles `/users/123/show`.
-    - `Routes/users/{id}/delete.php`: Handles DELETE and/or other specified methods for `/users/123`.
+Create a simple web application in minutes:
 
-2. **Detect Routes**: Use `detect_routes` to load routes from the directory:
+### Step 1: Create Routes Directory
 
-   ```php
-   use PhpRepos\FileManager\Path;
-   use function PhpRepos\Web\Routes\detect_routes;
+```bash
+mkdir Routes
+```
 
-   $routes = detect_routes(Path::from(__DIR__)->sub('Routes'));
-   ```
+### Step 2: Create Home Route
 
-3. **Handle Requests**: Use the `respond` function to process incoming requests, passing server variables:
-
-   ```php
-   use function PhpRepos\Web\Web\respond;
-
-   return respond(
-       routes: $routes,
-       url: $_SERVER['REQUEST_URI'],
-       method: $_SERVER['REQUEST_METHOD'],
-       variables: array_replace($_GET, $_POST, $_FILES)
-   );
-   ```
-
-**Example Handler File with Method Restrictions** (`Routes/users/{id}/delete.php`):
-
+**File:** `Routes/index.php`
 ```php
 <?php
-use PhpRepos\Web\Attributes\Method;
 
-return
-#[Method('DELETE'), Method('POST')]
-function (int $user_id) {
-    return "Delete user $user_id";
+/**
+ * Welcome page handler.
+ */
+return function () {
+    return "Welcome to my web application!";
 };
 ```
 
-**Example Handler with Required and Optional Parameters** (`Routes/users/{email}/{id?}.php`):
+### Step 3: Use Built-in Entry Point
 
-```php
-<?php
-use PhpRepos\Web\Attributes\Method;
+The package provides a ready-to-use entry point file `https.php`. Simply point your web server to it:
 
-return
-#[Method('GET')]
-function (string $email, ?int $id = null) {
-    return $id ? "User $email with ID $id" : "User $email";
-};
+```bash
+php -S localhost:8000 https.php
 ```
 
-**Directory Structure Example**:
+Visit `http://localhost:8000` to see your welcome message!
+
+That's it! The `https.php` file automatically:
+- Discovers routes from your `Routes/` directory
+- Handles all request routing
+- Manages error responses
+- Returns appropriate HTTP status codes
+
+### Step 4: Custom Entry Point (Optional)
+
+For advanced customization, create your own entry point:
+
+**File:** `index.php`
+```php
+<?php
+
+use PhpRepos\FileManager\Path;
+use function PhpRepos\WebRouter\Business\Finder\path;
+use function PhpRepos\WebRouter\Business\Router\respond;
+
+$routes = Finder\path('Routes');
+if (!$routes->success) {
+    http_response_code(500);
+    echo $routes->message;
+    return;
+}
+
+$outcome = respond(
+    routes: $routes->data['routes'],
+    url: $_SERVER['REQUEST_URI'],
+    method: $_SERVER['REQUEST_METHOD'],
+    variables: array_replace($_GET, $_POST, $_FILES)
+);
+
+if (!$outcome->success) {
+    http_response_code(str_contains($outcome->message, 'not found') ? 404 : 400);
+    echo $outcome->message;
+    return;
+}
+
+echo is_array($outcome->data['response']) 
+    ? json_encode($outcome->data['response']) 
+    : $outcome->data['response'];
+```
+
+Then run with:
+```bash
+php -S localhost:8000 index.php
+```
+
+## File-based Routing
+
+The router automatically discovers routes from your directory structure. Each PHP file represents a route, and the file path determines the URL pattern.
+
+### Basic Structure
 
 ```
 Routes/
 ├── index.php              # Handles "/"
 ├── users/
 │   ├── index.php          # Handles "/users"
+│   ├── create.php         # Handles "/users/create"
 │   ├── {id}/
 │   │   ├── show.php       # Handles "/users/{id}/show"
-│   │   ├── delete.php     # Handles DELETE, POST "/users/{id}"
-│   │   ├── posts/
-│   │   │   ├── index.php  # Handles "/users/{id}/posts"
-│   │   │   ├── {post_id}/ # Handles "/users/{id}/posts/{post_id}"
-├── v1/
-│   ├── posts/
-│   │   ├── get.php        # Handles GET "/v1/posts"
-│   │   ├── {id}.php       # Handles "/v1/posts/{id}"
-│   │   ├── search%20by.php # Handles "/v1/posts/search by"
+│   │   └── delete.php     # Handles "/users/{id}"
+│   └── {email}/
+│       └── [{id}].php     # Handles "/users/{email}/[{id}]"
+├── api/
+│   └── v1/
+│       ├── posts/
+│       │   ├── get.php    # Handles GET "/api/v1/posts"
+│       │   └── {id}.php  # Handles "/api/v1/posts/{id}"
 ```
 
-Prefer to use the `http.php` file that takes care of all of that. 
+### Dynamic Parameters
 
-### Option 2: Manual Route Definition
+Use curly braces in filenames to create dynamic routes:
 
-Define routes programmatically using the `Router` class with method restrictions:
+**File:** `Routes/users/{id}/show.php`
+```php
+<?php
+
+return function (int $id) {
+    return "Showing user profile for ID: $id";
+};
+```
+
+### Optional Parameters
+
+Use `[{parameter}]` for optional URL segments:
+
+**File:** `Routes/posts/{category}/[{id}].php`
+```php
+<?php
+
+return function (string $category, ?int $id = null) {
+    if ($id) {
+        return "Showing post $id from category $category";
+    }
+    return "All posts in category $category";
+};
+```
+
+### Method-Specific Files
+
+Create files with HTTP method names to handle specific methods:
+
+**File:** `Routes/users/{id}/delete.php`
+```php
+<?php
+
+use PhpRepos\WebRouter\Business\Attributes\Method;
+
+return
+#[Method('DELETE'), Method('POST')]
+function (int $id) {
+    return "User $id deleted successfully";
+};
+```
+
+## Manual Route Definition
+
+For more control, define routes programmatically as arrays:
 
 ```php
-use PhpRepos\Web\Router;
-use PhpRepos\Web\Attributes\Method;
+<?php
 
-$router = new Router();
-$router->handle('/users/{id}', #[Method('GET'), Method('POST')] function (int $id) {
-    return "Showing user $id";
-});
-$router->handle('/posts/create', #[Method('POST')] function (string $title, ?int $id = null) {
-    return $id ? "Created post $title with ID $id" : "Created post $title";
-});
+use PhpRepos\WebRouter\Business\Attributes\Method;
 
-return respond(
-    routes: $router,
+// Define routes array
+$routes = [
+    // Simple route
+    [
+        'pattern' => '/about',
+        'handler' => function () {
+            return 'About us page';
+        }
+    ],
+    
+    // Route with parameters
+    [
+        'pattern' => '/products/{id}',
+        'handler' => function (int $id) {
+            return "Product $id details";
+        }
+    ],
+    
+    // Route with method restrictions
+    [
+        'pattern' => '/api/users',
+        'handler' => 
+            #[Method('POST')]
+            function (string $name, string $email) {
+                return ['status' => 'created', 'user' => compact('name', 'email')];
+            }
+    ]
+];
+
+// Use routes with respond function
+$outcome = respond(
+    routes: $routes,
     url: $_SERVER['REQUEST_URI'],
     method: $_SERVER['REQUEST_METHOD'],
     variables: array_replace($_GET, $_POST, $_FILES)
 );
 ```
 
-### Handling Parameters
+## Handling Parameters
 
-- **Dynamic Parameters**: Define parameters in URLs (e.g., `{id}`) and specify types in handlers:
+### Dynamic Parameters
+
+Define parameters in URLs and specify types in handlers:
 
 ```php
 // Routes/posts/{id}.php
@@ -148,155 +246,523 @@ return function (int $id) {
 };
 ```
 
-- **Optional Parameters**: Use `{?param}` in URLs or `?type $param` in handler signatures:
+### Optional Parameters
+
+Use optional parameters with default values:
 
 ```php
-// Routes/users/{email}/{id?}.php
+// Routes/users/{email}/[{id}].php
 return function (string $email, ?int $id = null) {
     return $id ? "User $email with ID $id" : "User $email";
 };
 ```
 
-- **Type Validation**: Parameters are validated against their types (`int`, `bool`, `string`, etc.):
+### Type Validation
+
+Parameters are automatically validated against their types:
 
 ```php
 // Routes/posts/{id}/{force}.php
 return
 #[Method('DELETE')]
 function (int $id, bool $force) {
-    return "Delete post ID $id with force as " . ($force ? 'true' : 'false');
+    return "Delete post ID $id with force: " . ($force ? 'true' : 'false');
 };
 ```
 
-- **Required vs. Optional**: The router respects parameter signatures:
-    - Required parameters (e.g., `string $email`) must be provided in the URL or variables.
-    - Optional parameters (e.g., `?int $id`) can be omitted, defaulting to `null` or the specified default value.
+### Accessing Request Variables
 
-### HTTP Method Restrictions
-
-Use the `#[Method]` attribute to limit handlers to specific HTTP methods. The attribute is repeatable, allowing multiple methods for a single handler:
+Access `$_GET`, `$_POST`, and `$_FILES` through handler parameters:
 
 ```php
-// Routes/users/{id}/edit.php
-use PhpRepos\Web\Attributes\Method;
+// Routes/contact.php
+return
+#[Method('POST')]
+function (string $name, string $message, array $files = []) {
+    return "Received message from $name with " . count($files) . " file(s)";
+};
+```
+
+## HTTP Method Restrictions
+
+Use the `#[Method]` attribute to limit handlers to specific HTTP methods:
+
+```php
+<?php
+
+use PhpRepos\WebRouter\Business\Attributes\Method;
+
+return
+#[Method('GET')]
+function () {
+    return 'GET request only';
+};
+```
+
+### Multiple Methods
+
+The attribute is repeatable, allowing multiple methods:
+
+```php
+<?php
+
+use PhpRepos\WebRouter\Business\Attributes\Method;
 
 return
 #[Method('PUT'), Method('PATCH')]
 function (int $id) {
-    return "Edit user $id";
+    return "Updating user $id";
 };
 ```
 
-If a request uses an unallowed method, a `MethodNotAllowedException` is thrown.
+### Method-Specific Files
 
-### Signal Handling
+Alternative approach using filename convention:
+
+```
+Routes/
+├── users/{id}/
+│   ├── get.php          # GET /users/{id}
+│   ├── post.php         # POST /users/{id}
+│   ├── put.php          # PUT /users/{id}
+│   └── delete.php      # DELETE /users/{id}
+```
+
+## Signal System
 
 Monitor the request lifecycle by subscribing to signals:
 
 ```php
-use PhpRepos\Observer\Observer\subscribe;
-use PhpRepos\Web\Signals\RequestReceived;
+<?php
 
+use PhpRepos\Observer\API\Bus\subscribe;
+use PhpRepos\WebRouter\Business\Signals\RequestReceived;
+use PhpRepos\WebRouter\Business\Signals\RouteDetected;
+use PhpRepos\WebRouter\Business\Signals\HandlerExecuted;
+
+// Log all requests
 subscribe(function ($signal) {
     if ($signal instanceof RequestReceived) {
-        error_log("Request received: {$signal->details['url']}");
+        error_log("Request: {$signal->details['url']} [{$signal->details['method']}]");
+    }
+});
+
+// Log successful routing
+subscribe(function ($signal) {
+    if ($signal instanceof RouteDetected) {
+        error_log("Route matched: {$signal->details['route']}");
+    }
+});
+
+// Log response times
+subscribe(function ($signal) {
+    if ($signal instanceof HandlerExecuted) {
+        error_log("Response generated for: {$signal->details['route']}");
     }
 });
 ```
 
-**Available Signals**:
-- `RequestReceived`: Emitted on request receipt.
-- `RouteDetected`: Emitted when a route is matched.
-- `ExecutingHandler`: Emitted before handler execution.
-- `HandlerExecuted`: Emitted after handler execution with the response.
-- `RouteNotFoundForUrl`: Emitted when no route matches.
-- `DisallowedMethodDetected`: Emitted when the method is not allowed.
+### Available Signals
 
-### Error Handling
+- **`RequestReceived`**: Emitted on request receipt
+- **`DetectingRoutes`**: Emitted when starting route discovery
+- **`RoutesDetectionCompleted`**: Emitted when routes are successfully loaded
+- **`RoutesDetectionFailed`**: Emitted when route discovery fails
+- **`FindingRoute`**: Emitted when starting to find matching route
+- **`RouteDetected`**: Emitted when a route is matched
+- **`RouteFindingFailed`**: Emitted when no route matches
+- **`ExecutingHandler`**: Emitted before handler execution
+- **`HandlerExecuted`**: Emitted after handler execution
+- **`DisallowedMethodDetected`**: Emitted when HTTP method is not allowed
 
-Handle exceptions for robust routing:
+## Error Handling
+
+The router uses the Outcome pattern for consistent error handling. All Business layer functions return an `Outcome` object with `success`, `message`, and `data` properties.
 
 ```php
-use PhpRepos\Web\Exceptions\RouteNotFoundException;
-use PhpRepos\Web\Exceptions\MethodNotAllowedException;
-use PhpRepos\Web\Exceptions\ParameterValidationException;
+<?php
 
-try {
-    $response = respond($routes, $_SERVER['REQUEST_URI'], $_SERVER['REQUEST_METHOD']);
-    echo is_array($response) ? json_encode($response) : $response;
-} catch (RouteNotFoundException $e) {
-    http_response_code(404);
-    echo $e->getMessage(); // e.g., Route not found for URL: /not-found
-} catch (MethodNotAllowedException $e) {
-    http_response_code(405);
-    echo $e->getMessage(); // e.g., Method is not allowed for URL: /users
-} catch (ParameterValidationException $e) {
-    http_response_code(400);
-    echo $e->getMessage(); // e.g., Expected type int for user_id but string provided
+use PhpRepos\WebRouter\Business\Router;
+
+$outcome = Router\respond(
+    routes: $routes,
+    url: $_SERVER['REQUEST_URI'],
+    method: $_SERVER['REQUEST_METHOD'],
+    variables: array_replace($_GET, $_POST, $_FILES)
+);
+
+if (!$outcome->success) {
+    // Determine appropriate HTTP status code based on error message
+    if (str_contains($outcome->message, 'Route not found')) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Page not found', 'message' => $outcome->message]);
+    } elseif (str_contains($outcome->message, 'Method') && str_contains($outcome->message, 'not allowed')) {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed', 'message' => $outcome->message]);
+    } elseif (str_contains($outcome->message, 'Parameter')) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid parameters', 'message' => $outcome->message]);
+    } else {
+        http_response_code(500);
+        echo json_encode(['error' => 'Internal server error', 'message' => $outcome->message]);
+    }
+    exit;
 }
+
+// Success - return the response
+echo is_array($outcome->data['response'])
+    ? json_encode($outcome->data['response'])
+    : $outcome->data['response'];
+```
+
+## Advanced Features
+
+### Encoded URL Handling
+
+The router automatically handles encoded characters:
+
+```php
+// URL: /search/hello%20world
+// Routes/search/{query}.php
+return function (string $query) {
+    return "Searching for: $query"; // "Searching for: hello world"
+};
+```
+
+### Case Insensitive Matching
+
+Routes match regardless of URL case:
+
+```
+/USERS/123  →  Routes/users/{id}/show.php
+/Products/456  →  Routes/products/{id}.php
+```
+
+### Query String Ignorance
+
+Query strings are ignored for routing:
+
+```
+/users/123?format=json&sort=name  →  Routes/users/{id}.php
+```
+
+### Flexible Responses
+
+Handlers can return any data type:
+
+```php
+// Return string
+return "Hello World";
+
+// Return array (auto-converts to JSON)
+return ['status' => 'success', 'data' => $result];
+
+// Return object
+return new JsonResponse(['message' => 'OK']);
 ```
 
 ## Use Cases
 
-- **RESTful APIs**: Map endpoints like `/v1/posts/{id}` to handlers with specific methods (e.g., GET, DELETE).
-- **Web Applications**: Serve dynamic content based on URL patterns and parameters.
-- **Microservices**: Route requests in lightweight PHP services with minimal overhead.
-- **Event-driven Systems**: Use signals to log, monitor, or trigger actions during the request lifecycle.
+### RESTful APIs
 
-## Example Application
+Create clean REST APIs with method-specific routing:
 
-**index.php**:
+```
+Routes/api/v1/
+├── posts/
+│   ├── index.php           # GET /api/v1/posts
+│   ├── create.php          # POST /api/v1/posts
+│   ├── {id}/
+│   │   ├── show.php       # GET /api/v1/posts/{id}
+│   │   ├── update.php     # PUT /api/v1/posts/{id}
+│   │   └── delete.php     # DELETE /api/v1/posts/{id}
+```
+
+### Web Applications
+
+Build traditional web applications with page routing:
+
+```
+Routes/
+├── index.php              # Home page
+├── about.php              # About page
+├── contact.php            # Contact form
+├── users/
+│   ├── index.php          # User list
+│   ├── create.php         # Registration
+│   ├── {id}/
+│   │   ├── profile.php    # User profile
+│   │   └── edit.php      # Edit profile
+```
+
+### Microservices
+
+Create lightweight, focused services:
 
 ```php
-use PhpRepos\FileManager\Path;
-use function PhpRepos\Web\Routes\detect_routes;
-use function PhpRepos\Web\Web\respond;
+// Single file microservice
+$routes = [
+    [
+        'pattern' => '/health',
+        'handler' => function () {
+            return ['status' => 'healthy'];
+        }
+    ],
+    [
+        'pattern' => '/process',
+        'handler' => 
+            #[Method('POST')]
+            function (array $data) {
+                // Process data
+                return ['processed' => true, 'count' => count($data)];
+            }
+    ]
+];
 
-$routes = detect_routes(Path::from(__DIR__)->sub('Routes'));
+respond($routes, $_SERVER['REQUEST_URI'], $_SERVER['REQUEST_METHOD']);
+```
 
-try {
-    $response = respond(
-        routes: $routes,
-        url: $_SERVER['REQUEST_URI'],
-        method: $_SERVER['REQUEST_METHOD'],
-        variables: array_replace($_GET, $_POST, $_FILES)
-    );
-    echo is_array($response) ? json_encode($response) : $response;
-} catch (Exception $e) {
-    http_response_code($e instanceof RouteNotFoundException ? 404 : 400);
-    echo $e->getMessage();
+### Event-driven Systems
+
+Use signals for logging, monitoring, and analytics:
+
+```php
+// Request logging
+subscribe(function (RequestReceived $signal) {
+    $log = [
+        'timestamp' => date('Y-m-d H:i:s'),
+        'url' => $signal->details['url'],
+        'method' => $signal->details['method'],
+        'ip' => $_SERVER['REMOTE_ADDR']
+    ];
+    file_put_contents('requests.log', json_encode($log) . "\n", FILE_APPEND);
+});
+
+// Performance monitoring
+$start_time = microtime(true);
+subscribe(function (HandlerExecuted $signal) use (&$start_time) {
+    $duration = (microtime(true) - $start_time) * 1000;
+    if ($duration > 1000) { // Log slow requests
+        error_log("Slow request: {$signal->details['route']} took {$duration}ms");
+    }
+});
+```
+
+## For Developers
+
+This section is for developers who want to understand internal architecture and create custom integrations.
+
+### Architecture Overview
+
+The Web Router Package follows **Natural Architecture** with three distinct layers:
+
+#### 1. Business Layer (`Source/Business/`)
+
+Defines **what** the system does through pure specifications. Functions return `Outcome` objects and delegate implementation to Solution layer.
+
+**Key Components:**
+- `Router\respond()` - Main request handling function
+- `Router\find()` - Find matching route for URL
+- `Finder\path()` - Discover routes from filesystem
+- `Outcome.php` - Return value wrapper
+- `Attributes/` - HTTP method restriction attributes
+- `Signals/` - Event objects for observer pattern
+
+#### 2. Solution Layer (`Source/Solution/`)
+
+Contains **how** things are implemented - actual logic for routing, parsing, and validation.
+
+**Key Components:**
+- `Routes\sort()` - Sort routes by specificity
+- `Routes\match_pattern()` - Match URL against route pattern
+- `Routes\validate_method()` - Validate HTTP method
+- `Routes\validate_parameters()` - Validate and prepare parameters
+- `URLs\path()` - Extract path from URL
+- `Paths\from_root()` - Resolve filesystem paths
+- `Paths\all_routes()` - Find all route files
+- `Exceptions/` - Domain-specific exceptions
+
+#### 3. Infrastructure Layer (`Source/Infra/`)
+
+Handles system-level utilities and external concerns.
+
+**Key Components:**
+- `Arrays.php` - Array manipulation utilities
+- `Strings.php` - String processing utilities
+- `Filesystem.php` - File operations
+- `Reflections.php` - PHP reflection utilities
+
+### API Reference
+
+#### Business Functions
+
+**`Finder\path(string $routes_directory, string $suffix = '.php'): Outcome`**
+
+Discovers routes from a directory structure.
+
+Returns:
+```php
+[
+    'success' => true,
+    'message' => 'Routes loaded successfully',
+    'data' => [
+        'routes' => [
+            ['pattern' => '/users/{id}', 'handler' => callable],
+            // ...
+        ]
+    ]
+]
+```
+
+**`Router\find(array $routes, string $url): Outcome`**
+
+Find a matching route for the given URL.
+
+Returns:
+```php
+[
+    'success' => true,
+    'message' => 'Route found',
+    'data' => [
+        'route' => ['pattern' => '/users/{id}', 'handler' => callable],
+        'parameters' => ['id' => 123]
+    ]
+]
+```
+
+**`Router\respond(array $routes, string $url, string $method, array $variables = []): Outcome`**
+
+Process an HTTP request and return response.
+
+Returns:
+```php
+[
+    'success' => true,
+    'message' => 'Request handled successfully',
+    'data' => ['response' => mixed]
+]
+```
+
+#### Solution Functions
+
+**`Routes\match_pattern(string $pattern, string $url_path): ?array`**
+
+Match URL path against route pattern.
+
+Returns array of parameters or null if no match.
+
+**`Routes\validate_method(callable $handler, string $method, string $url): void`**
+
+Validate HTTP method against handler's method restrictions.
+
+Throws `MethodNotAllowedException` if method not allowed.
+
+**`Routes\validate_parameters(callable $handler, array $url_parameters, array $variables): array`**
+
+Validate and prepare parameters for handler.
+
+Returns prepared parameters array.
+
+### Creating Custom Integrations
+
+#### Example: Database-Backed Routes
+
+```php
+class DatabaseRouteFinder
+{
+    public static function from_table(string $table): Outcome
+    {
+        try {
+            $routes = [];
+            $results = DB::query("SELECT pattern, handler FROM $table");
+            
+            foreach ($results as $row) {
+                $routes[] = [
+                    'pattern' => $row['pattern'],
+                    'handler' => eval('return ' . $row['handler'] . ';')
+                ];
+            }
+            
+            return new Outcome(true, 'Routes loaded from database', [
+                'routes' => $routes
+            ]);
+            
+        } catch (Exception $e) {
+            return new Outcome(false, "Database error: {$e->getMessage()}", []);
+        }
+    }
+}
+
+// Use in your application
+$routes = DatabaseRouteFinder::from_table('routes');
+if ($routes->success) {
+    $outcome = respond($routes->data['routes'], $_SERVER['REQUEST_URI'], $_SERVER['REQUEST_METHOD']);
 }
 ```
 
-**Routes/users/{id}/delete.php**:
+#### Example: Custom Parameter Validation
 
 ```php
-<?php
-use PhpRepos\Web\Attributes\Method;
+class CustomValidator
+{
+    public static function validate_email(string $email): bool
+    {
+        return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+    }
+    
+    public static function validate_phone(string $phone): bool
+    {
+        return preg_match('/^\+?[\d\s-()]+$/', $phone) !== false;
+    }
+}
 
-return
-#[Method('DELETE'), Method('POST')]
-function (int $id) {
-    return "Delete user $id";
+// In route handler
+return function (string $email, string $phone) {
+    if (!CustomValidator::validate_email($email)) {
+        throw new ParameterValidationException('email', 'valid email', $email);
+    }
+    
+    if (!CustomValidator::validate_phone($phone)) {
+        throw new ParameterValidationException('phone', 'valid phone number', $phone);
+    }
+    
+    return ['email' => $email, 'phone' => $phone];
 };
 ```
 
-**Routes/posts/create.php**:
+#### Example: Custom Signal Handlers
 
 ```php
-<?php
-use PhpRepos\Web\Attributes\Method;
+use PhpRepos\Observer\API\Bus\subscribe;
 
-return
-#[Method('POST')]
-function (string $title, ?int $id = null) {
-    return $id ? "Created post $title with ID $id" : "Created post $title";
-};
+// Analytics tracking
+subscribe(function (RouteDetected $signal) {
+    // Track route usage in analytics
+    Analytics::track('route_used', [
+        'route' => $signal->details['route'],
+        'timestamp' => time()
+    ]);
+});
+
+// Security monitoring
+subscribe(function (RouteFindingFailed $signal) {
+    // Log potential security issues
+    if (str_contains($signal->details['url'], '../')) {
+        Security::log_suspicious_request($signal->details['url']);
+    }
+});
+
+// Custom metrics
+subscribe(function (HandlerExecuted $signal) {
+    // Record custom metrics
+    Metrics::increment('requests_handled');
+    Metrics::histogram('response_size', strlen(json_encode($signal->details['response'])));
+});
 ```
 
 ## Contributing
 
-Contributions are welcome! Please submit a pull request or open an issue on [GitHub](https://github.com/php-repos/web-router).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## License
 

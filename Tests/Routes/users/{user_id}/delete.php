@@ -1,6 +1,6 @@
 <?php
 
-use PhpRepos\Web\Attributes\Method;
+use PhpRepos\WebRouter\Business\Attributes\Method;
 
 return
 #[Method('DELETE')]
