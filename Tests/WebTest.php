@@ -18,7 +18,7 @@ use function PhpRepos\TestRunner\Assertions\assert_true;
 use function PhpRepos\TestRunner\Assertions\assert_false;
 use function PhpRepos\TestRunner\Runner\test;
 
-$outcome = Finder\path('Tests/Routes');
+$outcome = Finder\path(__DIR__ . '/Routes');
 if (!$outcome->success) {
     throw new Exception("Failed to load test routes: {$outcome->message}");
 }

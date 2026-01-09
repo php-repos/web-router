@@ -74,7 +74,14 @@ function respond(array $routes, string $url, string $method, array $variables = 
     $outcome = find($routes, $url);
     if (!$outcome->success) {
         send(RouteNotFoundForUrl::to($url, $method));
-        return new Outcome(false, $outcome->message, ['url' => $url, 'method' => $method]);
+        return new Outcome(false, $outcome->message, [
+            'route_not_found' => true,
+            'method_not_allowed' => false,
+            'validation_error' => false,
+            'internal_error' => false,
+            'url' => $url,
+            'method' => $method,
+        ]);
     }
 
     $route = $outcome->data['route'];
@@ -90,13 +97,40 @@ function respond(array $routes, string $url, string $method, array $variables = 
         $response = ($route['handler'])(...array_values($prepared_params));
         send(HandlerExecuted::with_response($response, $route['pattern']));
 
-        return new Outcome(true, 'Request handled successfully', ['response' => $response]);
+        return new Outcome(true, 'Request handled successfully', [
+            'route_not_found' => false,
+            'method_not_allowed' => false,
+            'validation_error' => false,
+            'internal_error' => false,
+            'response' => $response,
+        ]);
     } catch (MethodNotAllowedException $e) {
         send(DisallowedMethodDetected::for($url_path, $method, $e->allowed_methods));
-        return new Outcome(false, $e->getMessage(), ['url' => $url, 'method' => $method]);
+        return new Outcome(false, $e->getMessage(), [
+            'route_not_found' => false,
+            'method_not_allowed' => true,
+            'validation_error' => false,
+            'internal_error' => false,
+            'url' => $url,
+            'method' => $method,
+            'allowed_methods' => $e->allowed_methods,
+        ]);
     } catch (ParameterValidationException $e) {
-        return new Outcome(false, $e->getMessage(), ['url' => $url]);
+        return new Outcome(false, $e->getMessage(), [
+            'route_not_found' => false,
+            'method_not_allowed' => false,
+            'validation_error' => true,
+            'internal_error' => false,
+            'url' => $url,
+        ]);
     } catch (Throwable $e) {
-        return new Outcome(false, "Internal error: {$e->getMessage()}", ['url' => $url]);
+        return new Outcome(false, "Internal error: {$e->getMessage()}", [
+            'route_not_found' => false,
+            'method_not_allowed' => false,
+            'validation_error' => false,
+            'internal_error' => true,
+            'url' => $url,
+            'exception' => $e,
+        ]);
     }
 }
