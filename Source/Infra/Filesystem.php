@@ -2,6 +2,7 @@
 
 namespace PhpRepos\WebRouter\Infra\Filesystem;
 
+use Exception;
 use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -34,4 +35,19 @@ function list_files(string $directory): array
     }
 
     return $files;
+}
+
+/**
+ * Get the absolute path of a file or directory.
+ *
+ * Resolves relative paths, symlinks, and normalizes the path.
+ *
+ * @param string $path The path to resolve
+ * @return string|false The absolute path, or false if the path doesn't exist
+ * @throws Exception
+ */
+function realpath(string $path): string|false
+{
+    $realpath = \realpath($path);
+    return $realpath ?: throw new Exception('Path does not exist: ' . $path);
 }

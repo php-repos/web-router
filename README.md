@@ -58,61 +58,68 @@ return function () {
 };
 ```
 
-### Step 3: Use Built-in Entry Point
+### Step 3: Create Entry Point
 
-The package provides a ready-to-use entry point file `https.php`. Simply point your web server to it:
-
-```bash
-php -S localhost:8000 https.php
-```
-
-Visit `http://localhost:8000` to see your welcome message!
-
-That's it! The `https.php` file automatically:
-- Discovers routes from your `Routes/` directory
-- Handles all request routing
-- Manages error responses
-- Returns appropriate HTTP status codes
-
-### Step 4: Custom Entry Point (Optional)
-
-For advanced customization, create your own entry point:
+Create a simple entry point that uses the package's `http.php`:
 
 **File:** `index.php`
 ```php
 <?php
 
-use function PhpRepos\WebRouter\Business\Finder\path;
-use function PhpRepos\WebRouter\Business\Router\respond;
-
-$routes = Finder\path(__DIR__ . '/Routes');
-if (!$routes->success) {
-    http_response_code(500);
-    echo $routes->message;
-    return;
-}
-
-$outcome = respond(
-    routes: $routes->data['routes'],
-    url: $_SERVER['REQUEST_URI'],
-    method: $_SERVER['REQUEST_METHOD'],
-    variables: array_replace($_GET, $_POST, $_FILES)
-);
-
-if (!$outcome->success) {
-    http_response_code(str_contains($outcome->message, 'not found') ? 404 : 400);
-    echo $outcome->message;
-    return;
-}
-
-echo is_array($outcome->data['response']) 
-    ? json_encode($outcome->data['response']) 
-    : $outcome->data['response'];
+$handle = require 
+__DIR__ . '/Packages/php-repos/web-router/http.php';
+$handle(__DIR__ . '/Routes');
 ```
 
 Then run with:
 ```bash
 php -S localhost:8000 index.php
+```
+
+Visit `http://localhost:8000` to see your welcome message!
+
+That's it! The `http.php` closure automatically:
+- Discovers routes from your `Routes/` directory
+- Handles all request routing
+- Returns appropriate HTTP status codes (404, 405, 422, 500)
+
+### Step 4: Custom Error Handling (Optional)
+
+For advanced customization, provide custom handlers:
+
+**File:** `index.php`
+```php
+<?php
+
+use PhpRepos\WebRouter\Business\Outcome;
+
+$handle = require __DIR__ . '/Packages/php-repos/web-router/http.php';
+
+$handle(__DIR__ . '/Routes', [
+    'on_success' => function (Outcome $outcome) {
+        echo is_array($outcome->data['response'])
+            ? json_encode($outcome->data['response'])
+            : $outcome->data['response'];
+    },
+    'on_not_found' => function (Outcome $outcome) {
+        http_response_code(404);
+        include __DIR__ . '/views/404.php';
+    },
+    'on_method_not_allowed' => function (Outcome $outcome) {
+        http_response_code(405);
+        header('Allow: ' . implode(', ', $outcome->data['allowed_methods']));
+        echo "Method {$outcome->data['method']} not allowed";
+    },
+    'on_validation_error' => function (Outcome $outcome) {
+        http_response_code(422);
+        echo json_encode(['error' => $outcome->message]);
+    },
+    'on_internal_error' => function (Outcome $outcome) {
+        http_response_code(500);
+        error_log($outcome->message);
+        include __DIR__ . '/views/500.php';
+    },
+]);
 ```
 
 ## File-based Routing
@@ -378,6 +385,57 @@ subscribe(function ($signal) {
 
 The router uses the Outcome pattern for consistent error handling. All Business layer functions return an `Outcome` object with `success`, `message`, and `data` properties.
 
+### Outcome Data Schema
+
+The `respond` function always returns an Outcome with a consistent data schema:
+
+```php
+$outcome->data = [
+    'route_not_found' => bool,      // true if no route matched the URL
+    'method_not_allowed' => bool,   // true if HTTP method not allowed
+    'validation_error' => bool,     // true if parameter validation failed
+    'internal_error' => bool,       // true if an unexpected error occurred
+    'response' => mixed,            // the handler response (on success)
+    'url' => string,                // the requested URL (on error)
+    'method' => string,             // the HTTP method (on some errors)
+    'allowed_methods' => array,     // allowed methods (on method_not_allowed)
+    'exception' => Throwable,       // the exception (on internal_error)
+];
+```
+
+### Using http.php Handlers
+
+The recommended approach is to use the `http.php` closure with custom handlers:
+
+```php
+<?php
+
+use PhpRepos\WebRouter\Business\Outcome;
+
+$handle = require __DIR__ . '/Packages/php-repos/web-router/http.php';
+
+$handle(__DIR__ . '/Routes', [
+    'on_success' => function (Outcome $outcome) {
+        // Handle successful response
+    },
+    'on_not_found' => function (Outcome $outcome) {
+        // Handle 404 - $outcome->data['url'] available
+    },
+    'on_method_not_allowed' => function (Outcome $outcome) {
+        // Handle 405 - $outcome->data['allowed_methods'] available
+    },
+    'on_validation_error' => function (Outcome $outcome) {
+        // Handle 422 - $outcome->message contains details
+    },
+    'on_internal_error' => function (Outcome $outcome) {
+        // Handle 500 - $outcome->data['exception'] available
+    },
+]);
+
+### Manual Error Handling
+
+For direct use of the Router functions:
+
 ```php
 <?php
 
@@ -390,28 +448,24 @@ $outcome = Router\respond(
     variables: array_replace($_GET, $_POST, $_FILES)
 );
 
-if (!$outcome->success) {
-    // Determine appropriate HTTP status code based on error message
-    if (str_contains($outcome->message, 'Route not found')) {
-        http_response_code(404);
-        echo json_encode(['error' => 'Page not found', 'message' => $outcome->message]);
-    } elseif (str_contains($outcome->message, 'Method') && str_contains($outcome->message, 'not allowed')) {
-        http_response_code(405);
-        echo json_encode(['error' => 'Method not allowed', 'message' => $outcome->message]);
-    } elseif (str_contains($outcome->message, 'Parameter')) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Invalid parameters', 'message' => $outcome->message]);
-    } else {
-        http_response_code(500);
-        echo json_encode(['error' => 'Internal server error', 'message' => $outcome->message]);
-    }
-    exit;
+if ($outcome->data['route_not_found']) {
+    http_response_code(404);
+    echo json_encode(['error' => 'Page not found']);
+} elseif ($outcome->data['method_not_allowed']) {
+    http_response_code(405);
+    header('Allow: ' . implode(', ', $outcome->data['allowed_methods']));
+    echo json_encode(['error' => 'Method not allowed']);
+} elseif ($outcome->data['validation_error']) {
+    http_response_code(422);
+    echo json_encode(['error' => $outcome->message]);
+} elseif ($outcome->data['internal_error']) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Internal server error']);
+} else {
+    echo is_array($outcome->data['response'])
+        ? json_encode($outcome->data['response'])
+        : $outcome->data['response'];
 }
-
-// Success - return the response
-echo is_array($outcome->data['response'])
-    ? json_encode($outcome->data['response'])
-    : $outcome->data['response'];
 ```
 
 ## Advanced Features
