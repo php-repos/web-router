@@ -82,11 +82,10 @@ For advanced customization, create your own entry point:
 ```php
 <?php
 
-use PhpRepos\FileManager\Path;
 use function PhpRepos\WebRouter\Business\Finder\path;
 use function PhpRepos\WebRouter\Business\Router\respond;
 
-$routes = Finder\path('Routes');
+$routes = Finder\path(__DIR__ . '/Routes');
 if (!$routes->success) {
     http_response_code(500);
     echo $routes->message;
@@ -578,7 +577,6 @@ Contains **how** things are implemented - actual logic for routing, parsing, and
 - `Routes\validate_method()` - Validate HTTP method
 - `Routes\validate_parameters()` - Validate and prepare parameters
 - `URLs\path()` - Extract path from URL
-- `Paths\from_root()` - Resolve filesystem paths
 - `Paths\all_routes()` - Find all route files
 - `Exceptions/` - Domain-specific exceptions
 
@@ -596,9 +594,9 @@ Handles system-level utilities and external concerns.
 
 #### Business Functions
 
-**`Finder\path(string $routes_directory, string $suffix = '.php'): Outcome`**
+**`Finder\path(string $routes_path, string $suffix = '.php'): Outcome`**
 
-Discovers routes from a directory structure.
+Discovers routes from a directory structure. The `$routes_path` must be an absolute path to the routes directory.
 
 Returns:
 ```php

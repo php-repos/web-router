@@ -41,35 +41,34 @@ use function PhpRepos\Observer\API\Bus\send;
  * │   ├── {email}/
  * │   │   ├── [{id}].php     -> pattern: "/users/{email}/[{id}]"
  *
- * @param string $routes_directory Path to the routes directory relative to project root
+ * @param string $routes_path Path to the routes directory
  * @param string $suffix File extension to look for (default: '.php')
  * @return Outcome Success with ['routes' => array] or failure with error message
  * @throws Throwable When filesystem operations or file loading fails
  */
-function path(string $routes_directory, string $suffix = '.php'): Outcome
+function path(string $routes_path, string $suffix = '.php'): Outcome
 {
-    send(DetectingRoutes::from_directory($routes_directory, $suffix));
+    send(DetectingRoutes::from_directory($routes_path, $suffix));
 
     try {
-        $root = Paths\from_root($routes_directory);
-        $files = Paths\all_routes($root, $suffix);
+        $files = Paths\all_routes($routes_path, $suffix);
         $routes = [];
 
         foreach ($files as $file) {
             $handler = require $file;
             $routes[] = [
-                'pattern' => Routes\url_pattern($root, $file, $suffix),
+                'pattern' => Routes\url_pattern($routes_path, $file, $suffix),
                 'handler' => is_callable($handler) ? $handler : fn () => $handler,
             ];
         }
 
-        send(RoutesDetectionCompleted::successfully($routes_directory, count($routes)));
+        send(RoutesDetectionCompleted::successfully($routes_path, count($routes)));
 
         return new Outcome(true, 'Routes loaded successfully', [
             'routes' => $routes,
         ]);
     } catch (Throwable $e) {
-        send(RoutesDetectionFailed::with_error($routes_directory, $e->getMessage()));
+        send(RoutesDetectionFailed::with_error($routes_path, $e->getMessage()));
 
         return new Outcome(false, "Failed to load routes: {$e->getMessage()}", []);
     }

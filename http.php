@@ -3,7 +3,7 @@
 use PhpRepos\WebRouter\Business\Finder;
 use PhpRepos\WebRouter\Business\Router;
 
-$outcome = Finder\path('Routes');
+$outcome = Finder\path(getcwd() . DIRECTORY_SEPARATOR . 'Routes');
 if (!$outcome->success) return $outcome->message;
 
 $routes = $outcome->data['routes'];
